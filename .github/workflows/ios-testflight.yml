@@ -26,6 +26,19 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Select Xcode 26+
+        # Apple now requires builds against iOS 26 SDK (Xcode 26+) for any
+        # upload to App Store Connect / TestFlight as of early 2026.
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+
+      - name: Print Xcode + SDK versions
+        run: |
+          xcodebuild -version
+          xcrun --sdk iphoneos --show-sdk-version
+          xcrun --sdk iphoneos --show-sdk-build-version
+
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
