@@ -18,7 +18,7 @@ jobs:
 
     env:
       TEAM_ID: 7L567TM2CH
-      BUNDLE_ID: com.mancavegaming.teachToReach
+      BUNDLE_ID: com.mancavegaming.TeachToReach
       KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
       ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
 

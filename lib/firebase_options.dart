@@ -57,12 +57,12 @@ class DefaultFirebaseOptions {
 
   static const FirebaseOptions ios = FirebaseOptions(
     apiKey: 'AIzaSyAukyNtkrLb6qMOvfNtgGlm23le6mqNIpU',
-    appId: '1:425317413761:ios:ae73cd10211a6e90b76e80',
+    appId: '1:425317413761:ios:d75edcb2107046a4b76e80',
     messagingSenderId: '425317413761',
     projectId: 'teach-to-reach',
     storageBucket: 'teach-to-reach.firebasestorage.app',
-    iosClientId: '425317413761-tgraenrluhpvbmtl3ktvgco1647sk60n.apps.googleusercontent.com',
-    iosBundleId: 'com.mancavegaming.teachToReach',
+    iosClientId: '425317413761-58p6hfpjbv4mt55oubh39cimr4km1vlb.apps.googleusercontent.com',
+    iosBundleId: 'com.mancavegaming.TeachToReach',
   );
 
   static const FirebaseOptions macos = FirebaseOptions(
@@ -74,4 +74,5 @@ class DefaultFirebaseOptions {
     iosClientId: '425317413761-tgraenrluhpvbmtl3ktvgco1647sk60n.apps.googleusercontent.com',
     iosBundleId: 'com.mancavegaming.teachToReach',
   );
+
 }

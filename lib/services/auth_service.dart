@@ -2,22 +2,32 @@ import 'package:flutter/foundation.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 
+import '../firebase_options.dart';
+
 class AuthService extends ChangeNotifier {
   final FirebaseAuth _auth = FirebaseAuth.instance;
 
-  /// On non-web (iOS/macOS/Android), use the google_sign_in plugin with the
-  /// iOS OAuth client ID. On web, this stays null — we use FirebaseAuth's
+  /// On non-web (iOS/macOS/Android), use the google_sign_in plugin. The iOS
+  /// OAuth client ID is sourced from the auto-generated firebase_options.dart
+  /// so it stays in sync if the bundle ID ever changes and `flutterfire
+  /// configure` is re-run. On web, this stays null — we use FirebaseAuth's
   /// native signInWithPopup which uses the project's auto-configured web
-  /// OAuth client (no client ID config needed in app code).
+  /// OAuth client.
   static final GoogleSignIn? _googleSignIn = kIsWeb
       ? null
       : GoogleSignIn(
           scopes: const ['email', 'profile'],
-          clientId: defaultTargetPlatform == TargetPlatform.iOS ||
-                  defaultTargetPlatform == TargetPlatform.macOS
-              ? '425317413761-tgraenrluhpvbmtl3ktvgco1647sk60n.apps.googleusercontent.com'
-              : null,
+          clientId: _platformIosClientId(),
         );
+
+  static String? _platformIosClientId() {
+    if (kIsWeb) return null;
+    if (defaultTargetPlatform == TargetPlatform.iOS ||
+        defaultTargetPlatform == TargetPlatform.macOS) {
+      return DefaultFirebaseOptions.currentPlatform.iosClientId;
+    }
+    return null;
+  }
 
   User? _user;
   bool _isLoading = false;
