@@ -57,6 +57,21 @@ dev_dependencies:
     sdk: flutter
   flutter_lints: ^6.0.0
 
+  # Generates iOS / Android / web / macos app icons from a single source PNG.
+  flutter_launcher_icons: ^0.14.4
+
+flutter_launcher_icons:
+  image_path: "assets/icons/app_icon.png"
+  ios: true
+  remove_alpha_ios: true   # Apple rejects 1024 with alpha
+  android: false           # Android dropped from scope
+  web:
+    generate: true
+    background_color: "#000000"
+    theme_color: "#D4AF37"
+  macos:
+    generate: true
+
 flutter:
   uses-material-design: true
 
