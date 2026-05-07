@@ -1,0 +1,31 @@
+# Force LF line endings for source files. macOS CI runners (GitHub Actions)
+# expect LF; Windows checkouts will convert on the way in/out via core.autocrlf.
+* text=auto eol=lf
+
+# Mark files as binary so git doesn't mangle them.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.icns binary
+*.pdf binary
+*.zip binary
+*.p12 binary
+*.p8 binary
+*.mobileprovision binary
+*.cer binary
+
+# Dart files
+*.dart text eol=lf
+
+# YAML
+*.yaml text eol=lf
+*.yml text eol=lf
+
+# Plist
+*.plist text eol=lf
+
+# Lock files - mark linguist-generated to keep PRs clean
+pubspec.lock linguist-generated
+ios/Podfile.lock linguist-generated

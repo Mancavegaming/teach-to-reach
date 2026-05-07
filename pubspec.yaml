@@ -1,0 +1,65 @@
+name: teach_to_reach
+description: "Curriculum authoring and live-teaching tool for children's church."
+publish_to: 'none'
+
+version: 0.1.0+1
+
+environment:
+  sdk: ^3.10.7
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  cupertino_icons: ^1.0.8
+
+  # Firebase
+  firebase_core: ^3.8.1
+  firebase_auth: ^5.3.4
+  cloud_firestore: ^5.6.0
+
+  # Google Sign-In
+  google_sign_in: ^6.2.2
+
+  # State management
+  provider: ^6.1.2
+
+  # HTTP for Claude API
+  http: ^1.2.2
+
+  # Utilities
+  intl: ^0.20.1
+  shared_preferences: ^2.3.4
+  uuid: ^4.5.1
+  path_provider: ^2.1.5
+
+  # Animations
+  flutter_animate: ^4.5.0
+
+  # Sharing (for future PDF export)
+  share_plus: ^10.1.4
+
+  # Markdown rendering for sections in present mode
+  flutter_markdown: ^0.7.5
+
+  # Keep iPad screen on during teaching
+  wakelock_plus: ^1.2.10
+
+  # File picker for voice corpus uploads
+  file_picker: ^8.1.6
+
+  # PDF generation for support docs (slides, handouts, outlines, discussion guides)
+  pdf: ^3.11.1
+  printing: ^5.13.4
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true
+
+  assets:
+    - assets/bible/books.json
+    - assets/bible/kjv/
