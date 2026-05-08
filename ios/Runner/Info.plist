@@ -63,5 +63,11 @@
 	</dict>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Teach to Reach does not access your photos. This system permission is required only because the bundled file picker references the Photos framework.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Teach to Reach does not use your camera. This system permission is required only because the bundled file picker references the Camera framework.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Teach to Reach does not use your microphone. This system permission is required only because the bundled media plugins reference the Microphone framework.</string>
 </dict>
 </plist>
