@@ -508,10 +508,20 @@ class _LessonEditorScreenState extends State<LessonEditorScreen> {
                           builder: (_) => SermonModeScreen(lesson: _lesson),
                         ));
                       },
-                      onAnnotate: () {
-                        Navigator.of(context).push(MaterialPageRoute(
-                          builder: (_) => AnnotationScreen(lesson: _lesson),
-                        ));
+                      onAnnotate: () async {
+                        final updated = await Navigator.of(context).push<Lesson>(
+                          MaterialPageRoute(
+                            builder: (_) => AnnotationScreen(lesson: _lesson),
+                          ),
+                        );
+                        if (updated != null && mounted) {
+                          setState(() {
+                            _lesson = updated;
+                            _finalizedController.text =
+                                updated.finalizedSermonText;
+                            _finalizedDirty = false;
+                          });
+                        }
                       },
                     ),
                     const SizedBox(height: 24),

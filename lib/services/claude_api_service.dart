@@ -94,6 +94,66 @@ class ClaudeApiService {
     );
   }
 
+  /// Make a Claude API call that includes an image in the user message.
+  /// Used for the pen-annotation revision loop where Claude's vision reads
+  /// handwritten edits on top of the sermon text.
+  static Future<ClaudeResponse> callWithImage({
+    required List<Map<String, dynamic>> systemBlocks,
+    required String userMessage,
+    required Uint8List imageBytes,
+    String mediaType = 'image/png',
+    int maxTokens = 4096,
+    String? model,
+  }) async {
+    if (!ApiConfig.isClaudeConfigured) {
+      return ClaudeResponse(
+        success: false,
+        error: 'Claude API key not configured.',
+      );
+    }
+    try {
+      final base64Image = base64Encode(imageBytes);
+      final response = await http.post(
+        Uri.parse(_baseUrl),
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': ApiConfig.claudeApiKey,
+          'anthropic-version': _apiVersion,
+          'anthropic-beta': _cacheBeta,
+          'anthropic-dangerous-direct-browser-access': 'true',
+        },
+        body: jsonEncode({
+          'model': model ?? ApiConfig.claudeOpusModel,
+          'max_tokens': maxTokens,
+          'system': systemBlocks,
+          'messages': [
+            {
+              'role': 'user',
+              'content': [
+                {
+                  'type': 'image',
+                  'source': {
+                    'type': 'base64',
+                    'media_type': mediaType,
+                    'data': base64Image,
+                  },
+                },
+                {
+                  'type': 'text',
+                  'text': userMessage,
+                },
+              ],
+            }
+          ],
+        }),
+      );
+      return _parseResponse(response);
+    } catch (e) {
+      debugPrint('Claude vision call failed: $e');
+      return ClaudeResponse(success: false, error: e.toString());
+    }
+  }
+
   /// Make a Claude API call with conversation history.
   static Future<ClaudeResponse> callWithHistory({
     required List<Map<String, dynamic>> systemBlocks,
