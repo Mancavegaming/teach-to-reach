@@ -85,7 +85,7 @@ class _InkCanvasState extends State<InkCanvas> {
                   child: Center(
                     child: ConstrainedBox(
                       constraints: const BoxConstraints(maxWidth: 900),
-                      child: SelectableText(
+                      child: Text(
                         widget.text,
                         style: TextStyle(
                           color: AppColors.textPrimary,
