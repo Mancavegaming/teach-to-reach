@@ -32,7 +32,14 @@ class InkCanvas extends StatefulWidget {
 
 class _InkCanvasState extends State<InkCanvas> {
   final List<StrokePoint> _currentPoints = [];
+  final ScrollController _scrollController = ScrollController();
   Size? _canvasSize;
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
 
   void _onPointerDown(PointerDownEvent e) {
     if (!widget.penMode) return;
@@ -66,9 +73,11 @@ class _InkCanvasState extends State<InkCanvas> {
 
   StrokePoint _normalize(Offset pos, double pressure) {
     final size = _canvasSize ?? const Size(1, 1);
+    final scrollOffset =
+        _scrollController.hasClients ? _scrollController.offset : 0.0;
     return StrokePoint(
       pos.dx / size.width,
-      pos.dy / size.height,
+      (pos.dy + scrollOffset) / size.height,
       pressure == 0 ? 1.0 : pressure,
     );
   }
@@ -86,6 +95,7 @@ class _InkCanvasState extends State<InkCanvas> {
               ? (_) => setState(_currentPoints.clear)
               : null,
           child: SingleChildScrollView(
+            controller: _scrollController,
             physics: _currentPoints.isNotEmpty
                 ? const NeverScrollableScrollPhysics()
                 : const ClampingScrollPhysics(),
