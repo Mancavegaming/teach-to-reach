@@ -71,22 +71,24 @@ class _InkCanvasState extends State<InkCanvas> {
 
   @override
   Widget build(BuildContext context) {
-    return Listener(
-      behavior: HitTestBehavior.opaque,
-      onPointerDown: widget.penMode ? _onPointerDown : null,
-      onPointerMove: widget.penMode ? _onPointerMove : null,
-      onPointerUp: widget.penMode ? _onPointerUp : null,
-      onPointerCancel: widget.penMode
-          ? (_) => setState(_currentPoints.clear)
-          : null,
-      child: SingleChildScrollView(
-        physics: widget.penMode
-            ? const NeverScrollableScrollPhysics()
-            : const ClampingScrollPhysics(),
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            return ConstrainedBox(
-              constraints: BoxConstraints(minHeight: constraints.maxHeight),
+    return LayoutBuilder(
+      builder: (context, viewportConstraints) {
+        return Listener(
+          behavior: HitTestBehavior.opaque,
+          onPointerDown: widget.penMode ? _onPointerDown : null,
+          onPointerMove: widget.penMode ? _onPointerMove : null,
+          onPointerUp: widget.penMode ? _onPointerUp : null,
+          onPointerCancel: widget.penMode
+              ? (_) => setState(_currentPoints.clear)
+              : null,
+          child: SingleChildScrollView(
+            physics: widget.penMode
+                ? const NeverScrollableScrollPhysics()
+                : const ClampingScrollPhysics(),
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                minHeight: viewportConstraints.maxHeight,
+              ),
               child: Stack(
                 children: [
                   Padding(
@@ -126,10 +128,10 @@ class _InkCanvasState extends State<InkCanvas> {
                   ),
                 ],
               ),
-            );
-          },
-        ),
-      ),
+            ),
+          ),
+        );
+      },
     );
   }
 }
