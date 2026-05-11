@@ -1,3 +1,4 @@
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 
 import '../../../core/theme/app_theme.dart';
@@ -35,6 +36,7 @@ class _InkCanvasState extends State<InkCanvas> {
 
   void _onPointerDown(PointerDownEvent e) {
     if (!widget.penMode) return;
+    if (e.kind != PointerDeviceKind.stylus) return;
     setState(() {
       _currentPoints
         ..clear()
@@ -44,6 +46,7 @@ class _InkCanvasState extends State<InkCanvas> {
 
   void _onPointerMove(PointerMoveEvent e) {
     if (!widget.penMode || _currentPoints.isEmpty) return;
+    if (e.kind != PointerDeviceKind.stylus) return;
     setState(() {
       _currentPoints.add(_normalize(e.localPosition, e.pressure));
     });
@@ -51,6 +54,7 @@ class _InkCanvasState extends State<InkCanvas> {
 
   void _onPointerUp(PointerUpEvent e) {
     if (!widget.penMode || _currentPoints.isEmpty) return;
+    if (e.kind != PointerDeviceKind.stylus) return;
     final stroke = InkStroke(
       color: widget.inkColor,
       widthFactor: 2.6,
@@ -82,7 +86,7 @@ class _InkCanvasState extends State<InkCanvas> {
               ? (_) => setState(_currentPoints.clear)
               : null,
           child: SingleChildScrollView(
-            physics: widget.penMode
+            physics: _currentPoints.isNotEmpty
                 ? const NeverScrollableScrollPhysics()
                 : const ClampingScrollPhysics(),
             child: ConstrainedBox(
