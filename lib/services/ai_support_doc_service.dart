@@ -17,6 +17,8 @@ import 'claude_api_service.dart';
 enum SupportDocType {
   slides('Slides', 'slides for projecting in class'),
   handout('Handout', 'a one-page student handout'),
+  fillInHandout(
+      'Fill-in Handout', 'a follow-along handout with key words blanked out'),
   outline('Speaker Outline', 'a speaker outline for the teacher'),
   discussionGuide('Discussion Guide', 'a small-group discussion guide');
 
@@ -28,14 +30,17 @@ enum SupportDocType {
 class AiSupportDocResult {
   final bool success;
   final Uint8List? pdfBytes;
+  final Map<String, dynamic>? data;
   final String? error;
-  AiSupportDocResult({required this.success, this.pdfBytes, this.error});
+  AiSupportDocResult(
+      {required this.success, this.pdfBytes, this.data, this.error});
 }
 
 class AiSupportDocService {
-  /// Generate a support doc as a PDF. Internally:
-  /// 1. AI produces structured JSON.
-  /// 2. We render to PDF.
+  /// Generate a support doc. When [renderPdfDirectly] is true (default), the
+  /// result includes baked PDF bytes. When false, only the parsed structured
+  /// data is returned — callers (e.g. the fill-in-handout preview screen) can
+  /// modify it and pass it back through [renderFromData] to get the PDF.
   static Future<AiSupportDocResult> generate({
     required SupportDocType type,
     required Lesson lesson,
@@ -45,6 +50,7 @@ class AiSupportDocService {
     ClassProfile? classProfile,
     DoctrinalPositions? doctrine,
     List<VoiceCorpusItem> voiceCorpus = const [],
+    bool renderPdfDirectly = true,
   }) async {
     final systemBlocks = AiContextBuilder.build(
       teacher: teacher,
@@ -74,6 +80,9 @@ class AiSupportDocService {
     try {
       final json = _extractJson(response.text ?? '');
       final parsed = jsonDecode(json) as Map<String, dynamic>;
+      if (!renderPdfDirectly) {
+        return AiSupportDocResult(success: true, data: parsed);
+      }
       final bytes = await _renderPdf(
         type: type,
         lesson: lesson,
@@ -81,13 +90,32 @@ class AiSupportDocService {
         teacherName: teacher?.displayName ?? '',
         data: parsed,
       );
-      return AiSupportDocResult(success: true, pdfBytes: bytes);
+      return AiSupportDocResult(success: true, pdfBytes: bytes, data: parsed);
     } catch (e) {
       return AiSupportDocResult(
         success: false,
         error: 'Failed to render $type: $e\nRaw: ${response.text}',
       );
     }
+  }
+
+  /// Re-render a support doc from already-parsed (possibly user-edited) data.
+  /// Used by the fill-in-handout preview screen after the user adjusts which
+  /// words are blanks.
+  static Future<Uint8List> renderFromData({
+    required SupportDocType type,
+    required Lesson lesson,
+    String? seriesTitle,
+    TeacherProfile? teacher,
+    required Map<String, dynamic> data,
+  }) {
+    return _renderPdf(
+      type: type,
+      lesson: lesson,
+      seriesTitle: seriesTitle,
+      teacherName: teacher?.displayName ?? '',
+      data: data,
+    );
   }
 
   // ---- prompts ----
@@ -168,6 +196,39 @@ Rules:
 - Tone: warm, scripture-saturated, written FOR the student.
 ''';
 
+      case SupportDocType.fillInHandout:
+        return '''
+Generate a follow-along handout for the lesson below — designed so STUDENTS write key words in the blanks while the teacher preaches the sermon. The handout reinforces memory and keeps young minds engaged.
+
+$lessonHeader
+
+OUTPUT
+Respond with ONLY a JSON object — no prose before or after — in this shape:
+
+{
+  "title": "string",
+  "subtitle": "scripture reference",
+  "bigIdea": "one-sentence big idea, with the most important 1-2 KEY WORDS wrapped in double angle brackets like <<this>>",
+  "sections": [
+    {
+      "heading": "string",
+      "body": "paragraph(s) of prose. The KEY words students should fill in are wrapped in <<double angle brackets>>. Aim for 2-4 blanks per section, on truly important nouns/verbs/concepts — NOT filler words."
+    },
+    ...
+  ],
+  "memoryVerse": "verse text + reference, with 1-3 most important words wrapped in <<brackets>>",
+  "applicationChallenge": "one sentence — what to DO this week"
+}
+
+Rules:
+- 3-5 sections covering: passage overview, key insight, application, response/challenge.
+- Body text is plain readable prose (NOT bullet points). Aim for ~60-120 words per section so students have something to read while listening.
+- Wrap the answer-word(s) in <<>> exactly. The PDF will render those as underscored blanks for students to fill in.
+- Blank out the words that LAND the point — nouns, verbs, concepts a 6th-12th grader should walk away knowing — not articles like "the" or "and".
+- 8-15 total blanks across the whole handout. Not too sparse, not so dense it overwhelms.
+- Tone: warm, scripture-saturated, written FOR the student.
+''';
+
       case SupportDocType.outline:
         return '''
 Generate ${type.prompt} for the teacher to glance at while preaching.
@@ -241,6 +302,9 @@ Rules:
         break;
       case SupportDocType.handout:
         _renderHandout(doc, lesson, data);
+        break;
+      case SupportDocType.fillInHandout:
+        _renderFillInHandout(doc, lesson, data);
         break;
       case SupportDocType.outline:
         _renderOutline(doc, lesson, data);
@@ -442,6 +506,161 @@ Rules:
         ],
       ],
     ));
+  }
+
+  static void _renderFillInHandout(
+    pw.Document doc,
+    Lesson lesson,
+    Map<String, dynamic> data,
+  ) {
+    final sections = (data['sections'] as List<dynamic>? ?? const [])
+        .cast<Map<String, dynamic>>();
+
+    doc.addPage(pw.MultiPage(
+      pageFormat: PdfPageFormat.letter,
+      margin: const pw.EdgeInsets.all(48),
+      build: (ctx) => [
+        pw.Text((data['title'] as String?) ?? lesson.title,
+            style: pw.TextStyle(fontSize: 28, fontWeight: pw.FontWeight.bold)),
+        if ((data['subtitle'] as String?)?.isNotEmpty == true)
+          pw.Padding(
+            padding: const pw.EdgeInsets.only(top: 4),
+            child: pw.Text(data['subtitle'] as String,
+                style: pw.TextStyle(
+                  fontSize: 14,
+                  color: PdfColor.fromInt(0xFFB8960C),
+                )),
+          ),
+        pw.SizedBox(height: 8),
+        pw.Text(
+          'Listen and fill in the blanks as we go.',
+          style: pw.TextStyle(
+            fontSize: 11,
+            fontStyle: pw.FontStyle.italic,
+            color: PdfColor.fromInt(0xFF555555),
+          ),
+        ),
+        pw.SizedBox(height: 14),
+        if ((data['bigIdea'] as String?)?.isNotEmpty == true)
+          pw.Container(
+            padding: const pw.EdgeInsets.all(12),
+            decoration: pw.BoxDecoration(
+              color: PdfColor.fromInt(0xFFFAF8F0),
+              borderRadius:
+                  const pw.BorderRadius.all(pw.Radius.circular(8)),
+              border: pw.Border(
+                left: pw.BorderSide(
+                  color: PdfColor.fromInt(0xFFD4AF37),
+                  width: 3,
+                ),
+              ),
+            ),
+            child: pw.Row(
+              crossAxisAlignment: pw.CrossAxisAlignment.start,
+              children: [
+                pw.Container(
+                  padding:
+                      const pw.EdgeInsets.only(right: 8, top: 1),
+                  child: pw.Text(
+                    'BIG IDEA:',
+                    style: pw.TextStyle(
+                      fontSize: 11,
+                      letterSpacing: 1.2,
+                      color: PdfColor.fromInt(0xFF555555),
+                      fontWeight: pw.FontWeight.bold,
+                    ),
+                  ),
+                ),
+                pw.Expanded(
+                  child: _fillInRichText(
+                    data['bigIdea'] as String? ?? '',
+                    bodyStyle: pw.TextStyle(
+                      fontSize: 13,
+                      fontStyle: pw.FontStyle.italic,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        pw.SizedBox(height: 16),
+        for (final s in sections) ...[
+          pw.Text((s['heading'] as String?) ?? '',
+              style: pw.TextStyle(
+                  fontSize: 16, fontWeight: pw.FontWeight.bold)),
+          pw.SizedBox(height: 6),
+          _fillInRichText(
+            (s['body'] as String?) ?? '',
+            bodyStyle: const pw.TextStyle(fontSize: 11, lineSpacing: 5),
+          ),
+          pw.SizedBox(height: 16),
+        ],
+        if ((data['memoryVerse'] as String?)?.isNotEmpty == true) ...[
+          pw.Divider(),
+          pw.Text('Memory verse',
+              style: pw.TextStyle(
+                  fontSize: 14, fontWeight: pw.FontWeight.bold)),
+          pw.SizedBox(height: 4),
+          _fillInRichText(
+            data['memoryVerse'] as String,
+            bodyStyle: pw.TextStyle(
+              fontSize: 12,
+              fontStyle: pw.FontStyle.italic,
+            ),
+          ),
+          pw.SizedBox(height: 12),
+        ],
+        if ((data['applicationChallenge'] as String?)?.isNotEmpty == true) ...[
+          pw.Divider(),
+          pw.Text('This week, I will…',
+              style: pw.TextStyle(
+                  fontSize: 14, fontWeight: pw.FontWeight.bold)),
+          pw.SizedBox(height: 4),
+          _fillInRichText(
+            data['applicationChallenge'] as String,
+            bodyStyle: const pw.TextStyle(fontSize: 12, lineSpacing: 4),
+          ),
+        ],
+      ],
+    ));
+  }
+
+  /// Renders body text where words wrapped in <<like_this>> become underscored
+  /// blanks. The underscore length scales to roughly fit the answer word so
+  /// the layout previews about right when students write it in.
+  static pw.Widget _fillInRichText(
+    String body, {
+    required pw.TextStyle bodyStyle,
+  }) {
+    final pattern = RegExp(r'<<([^>]+?)>>');
+    final spans = <pw.InlineSpan>[];
+    var lastEnd = 0;
+    for (final match in pattern.allMatches(body)) {
+      if (match.start > lastEnd) {
+        spans.add(pw.TextSpan(
+          text: body.substring(lastEnd, match.start),
+          style: bodyStyle,
+        ));
+      }
+      final answer = match.group(1) ?? '';
+      // Approximate a blank that's slightly wider than the answer.
+      final fill = '_' * (answer.length + 2).clamp(6, 26);
+      spans.add(pw.TextSpan(
+        text: fill,
+        style: bodyStyle.copyWith(
+          color: PdfColor.fromInt(0xFF222222),
+          letterSpacing: 0.5,
+        ),
+      ));
+      lastEnd = match.end;
+    }
+    if (lastEnd < body.length) {
+      spans.add(pw.TextSpan(
+        text: body.substring(lastEnd),
+        style: bodyStyle,
+      ));
+    }
+    return pw.RichText(text: pw.TextSpan(children: spans, style: bodyStyle));
   }
 
   static void _renderOutline(

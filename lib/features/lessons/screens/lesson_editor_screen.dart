@@ -19,6 +19,7 @@ import '../../ai/screens/study_brief_screen.dart';
 import '../../ai/widgets/ai_revise_dialog.dart';
 import '../../annotation/screens/annotation_screen.dart';
 import '../../sermon_mode/screens/sermon_mode_screen.dart';
+import '../../support_docs/screens/fill_in_handout_preview_screen.dart';
 import '../widgets/lesson_form_dialog.dart';
 
 class LessonEditorScreen extends StatefulWidget {
@@ -442,6 +443,7 @@ class _LessonEditorScreenState extends State<LessonEditorScreen> {
       sections.add(_sections[i].toSection(order: i));
     }
 
+    final isFillIn = type == SupportDocType.fillInHandout;
     final result = await AiSupportDocService.generate(
       type: type,
       lesson: _lesson,
@@ -451,14 +453,45 @@ class _LessonEditorScreenState extends State<LessonEditorScreen> {
       classProfile: classProfile,
       doctrine: doctrine,
       voiceCorpus: corpus,
+      renderPdfDirectly: !isFillIn,
     );
     if (!mounted) return;
     setState(() => _generatingDocType = null);
-    if (!result.success || result.pdfBytes == null) {
+    if (!result.success) {
       messenger.showSnackBar(
         SnackBar(
             content: Text(
                 '${type.label} failed: ${result.error ?? "unknown"}')),
+      );
+      return;
+    }
+
+    if (isFillIn) {
+      // Route through the preview screen so the user can toggle which words
+      // are blanks before the PDF is generated.
+      if (result.data == null) {
+        messenger.showSnackBar(
+          const SnackBar(content: Text('Fill-in handout: AI returned no data.')),
+        );
+        return;
+      }
+      await Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => FillInHandoutPreviewScreen(
+            lesson: _lesson,
+            seriesTitle: series?.title,
+            data: result.data!,
+          ),
+        ),
+      );
+      return;
+    }
+
+    if (result.pdfBytes == null) {
+      messenger.showSnackBar(
+        SnackBar(
+            content: Text(
+                '${type.label}: PDF render returned no bytes.')),
       );
       return;
     }
@@ -1336,6 +1369,8 @@ class _SupportDocButton extends StatelessWidget {
         return Icons.slideshow_outlined;
       case SupportDocType.handout:
         return Icons.description_outlined;
+      case SupportDocType.fillInHandout:
+        return Icons.edit_note;
       case SupportDocType.outline:
         return Icons.list_alt;
       case SupportDocType.discussionGuide:
