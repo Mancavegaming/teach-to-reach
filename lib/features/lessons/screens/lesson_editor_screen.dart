@@ -10,6 +10,7 @@ import '../../../services/ai_support_doc_service.dart';
 import '../../../services/auth_service.dart';
 import '../../../services/class_profile_service.dart';
 import '../../../services/doctrinal_positions_service.dart';
+import '../../../services/lesson_pdf_exporter.dart';
 import '../../../services/lesson_service.dart';
 import '../../../services/series_service.dart';
 import '../../../services/teacher_profile_service.dart';
@@ -186,6 +187,43 @@ class _LessonEditorScreenState extends State<LessonEditorScreen> {
               ? 'Lesson marked finalized'
               : 'Lesson unmarked'),
         ),
+      );
+    }
+  }
+
+  Future<void> _exportPdf() async {
+    final seriesSvc = context.read<SeriesService>();
+    final series =
+        seriesSvc.series.where((s) => s.id == _lesson.seriesId).toList();
+    final seriesTitle = series.isEmpty ? null : series.first.title;
+    final messenger = ScaffoldMessenger.of(context);
+
+    // Snapshot sections from the live drafts so the PDF reflects exactly
+    // what the teacher sees right now (no need to save first).
+    final sections = <model.Section>[
+      for (var i = 0; i < _sections.length; i++)
+        model.Section(
+          ownerId: _sections[i].ownerId,
+          lessonId: _sections[i].lessonId,
+          order: i,
+          title: _sections[i].titleController.text,
+          content: _sections[i].contentController.text,
+          speakerNotes: _sections[i].notesController.text,
+        ),
+    ];
+
+    try {
+      final bytes = await LessonPdfExporter.export(
+        lesson: _lesson,
+        sections: sections,
+        seriesTitle: seriesTitle,
+      );
+      if (!mounted) return;
+      await Printing.sharePdf(bytes: bytes, filename: '${_lesson.title}.pdf');
+    } catch (e) {
+      if (!mounted) return;
+      messenger.showSnackBar(
+        SnackBar(content: Text('PDF export failed: $e')),
       );
     }
   }
@@ -470,6 +508,9 @@ class _LessonEditorScreenState extends State<LessonEditorScreen> {
                   case 'finalize':
                     _toggleFinalized();
                     break;
+                  case 'export':
+                    _exportPdf();
+                    break;
                   case 'delete':
                     _deleteLesson();
                     break;
@@ -483,6 +524,16 @@ class _LessonEditorScreenState extends State<LessonEditorScreen> {
                   child: Text(_lesson.isFinalized
                       ? 'Mark as draft'
                       : 'Mark as finalized'),
+                ),
+                const PopupMenuDivider(),
+                const PopupMenuItem(
+                  value: 'export',
+                  child: ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: Icon(Icons.picture_as_pdf_outlined),
+                    title: Text('Export as PDF'),
+                    dense: true,
+                  ),
                 ),
                 const PopupMenuDivider(),
                 const PopupMenuItem(
