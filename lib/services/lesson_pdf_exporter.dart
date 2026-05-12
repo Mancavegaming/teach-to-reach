@@ -189,8 +189,7 @@ class LessonPdfExporter {
       crossAxisAlignment: pw.CrossAxisAlignment.start,
       children: [
         pw.Row(
-          crossAxisAlignment: pw.CrossAxisAlignment.baseline,
-          textBaseline: pw.TextBaseline.alphabetic,
+          crossAxisAlignment: pw.CrossAxisAlignment.center,
           children: [
             pw.Container(
               padding: const pw.EdgeInsets.symmetric(
