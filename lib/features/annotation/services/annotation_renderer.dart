@@ -30,10 +30,18 @@ class AnnotationRenderer {
     required double canvasHeight,
     double pixelRatio = 2.0,
   }) async {
-    // Bytes go to Anthropic; clamp to a reasonable max.
+    // Bytes go to Anthropic. Two hard caps from the vision API:
+    //   - long edge must be ≤ 8000 px
+    //   - file size must be ≤ 5 MB
+    // Cap both dimensions; pick the smallest scale that satisfies all of
+    // pixelRatio, width cap, and height cap. For very long sermons this
+    // shrinks text but keeps the request under the limit.
     const maxOutputWidth = 1568.0;
-    final scale =
-        canvasWidth * pixelRatio > maxOutputWidth ? maxOutputWidth / canvasWidth : pixelRatio;
+    const maxOutputHeight = 7600.0;
+    final scaleByWidth = maxOutputWidth / canvasWidth;
+    final scaleByHeight = maxOutputHeight / canvasHeight;
+    final scale = [pixelRatio, scaleByWidth, scaleByHeight]
+        .reduce((a, b) => a < b ? a : b);
     final outW = canvasWidth * scale;
     final outH = canvasHeight * scale;
 
