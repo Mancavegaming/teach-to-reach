@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
@@ -13,6 +15,7 @@ import '../../../services/doctrinal_positions_service.dart';
 import '../../../services/lesson_service.dart';
 import '../../../services/teacher_profile_service.dart';
 import '../../../services/voice_corpus_service.dart';
+import '../services/annotation_renderer.dart';
 import '../widgets/ink_canvas.dart';
 
 class AnnotationScreen extends StatefulWidget {
@@ -157,12 +160,21 @@ class _AnnotationScreenState extends State<AnnotationScreen> {
       return;
     }
 
+    final annotationTiles = await AnnotationRenderer.renderTiles(
+      text: _lesson.finalizedSermonText,
+      strokes: inMemoryAnnotation.strokes,
+      canvasWidth: inMemoryAnnotation.canvasWidth,
+      canvasHeight: inMemoryAnnotation.canvasHeight,
+    );
+    if (!mounted) return;
+
     final accepted = await showDialog<bool>(
       context: context,
       barrierDismissible: false,
       builder: (_) => _PenRevisionDiffDialog(
         original: _lesson.finalizedSermonText,
         revised: result.text ?? '',
+        annotationTiles: annotationTiles,
       ),
     );
     if (accepted != true || !mounted) return;
@@ -401,7 +413,12 @@ class _SubmittingOverlay extends StatelessWidget {
 class _PenRevisionDiffDialog extends StatefulWidget {
   final String original;
   final String revised;
-  const _PenRevisionDiffDialog({required this.original, required this.revised});
+  final List<Uint8List> annotationTiles;
+  const _PenRevisionDiffDialog({
+    required this.original,
+    required this.revised,
+    required this.annotationTiles,
+  });
 
   @override
   State<_PenRevisionDiffDialog> createState() => _PenRevisionDiffDialogState();
@@ -409,6 +426,7 @@ class _PenRevisionDiffDialog extends StatefulWidget {
 
 class _PenRevisionDiffDialogState extends State<_PenRevisionDiffDialog> {
   bool _showDiff = true;
+  bool _highlightChanges = true;
 
   @override
   Widget build(BuildContext context) {
@@ -431,6 +449,25 @@ class _PenRevisionDiffDialogState extends State<_PenRevisionDiffDialog> {
                       style: Theme.of(context).textTheme.titleLarge,
                     ),
                   ),
+                  Tooltip(
+                    message: _highlightChanges
+                        ? 'Hide new-content highlights on the revised side'
+                        : 'Highlight new content on the revised side',
+                    child: FilterChip(
+                      avatar: Icon(
+                        Icons.auto_fix_high,
+                        size: 18,
+                        color: _highlightChanges
+                            ? Colors.black
+                            : AppColors.primary,
+                      ),
+                      label: const Text('Highlight changes'),
+                      selected: _highlightChanges,
+                      onSelected: (v) =>
+                          setState(() => _highlightChanges = v),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
                   ToggleButtons(
                     isSelected: [_showDiff, !_showDiff],
                     onPressed: (i) => setState(() => _showDiff = i == 0),
@@ -438,14 +475,20 @@ class _PenRevisionDiffDialogState extends State<_PenRevisionDiffDialog> {
                     constraints:
                         const BoxConstraints(minHeight: 36, minWidth: 90),
                     children: const [
-                      Tooltip(message: 'Side-by-side', child: Padding(
-                        padding: EdgeInsets.symmetric(horizontal: 12),
-                        child: Text('Diff'),
-                      )),
-                      Tooltip(message: 'Revised only', child: Padding(
-                        padding: EdgeInsets.symmetric(horizontal: 12),
-                        child: Text('Clean'),
-                      )),
+                      Tooltip(
+                        message: 'Side-by-side',
+                        child: Padding(
+                          padding: EdgeInsets.symmetric(horizontal: 12),
+                          child: Text('Diff'),
+                        ),
+                      ),
+                      Tooltip(
+                        message: 'Revised only',
+                        child: Padding(
+                          padding: EdgeInsets.symmetric(horizontal: 12),
+                          child: Text('Clean'),
+                        ),
+                      ),
                     ],
                   ),
                 ],
@@ -484,17 +527,69 @@ class _PenRevisionDiffDialogState extends State<_PenRevisionDiffDialog> {
       return Row(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Expanded(child: _panel('Original', widget.original, false)),
+          Expanded(child: _annotatedPanel()),
           const SizedBox(width: 14),
-          Expanded(child: _panel('Revised', widget.revised, true)),
+          Expanded(child: _revisedPanel()),
         ],
       );
     });
   }
 
-  Widget _cleanView() => _panel('Revised', widget.revised, true);
+  Widget _cleanView() => _revisedPanel();
 
-  Widget _panel(String label, String text, bool highlight) {
+  /// Left side: the original sermon as a printed page with the user's ink
+  /// edits laid on top — the same tiles that were sent to Claude.
+  Widget _annotatedPanel() {
+    return _panelShell(
+      label: 'Original + your pen edits',
+      highlight: false,
+      child: widget.annotationTiles.isEmpty
+          ? const Center(
+              child: Text(
+                '(no annotation image)',
+                style: TextStyle(fontSize: 13),
+              ),
+            )
+          : SingleChildScrollView(
+              child: Column(
+                children: [
+                  for (final bytes in widget.annotationTiles)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: Image.memory(bytes, fit: BoxFit.contain),
+                    ),
+                ],
+              ),
+            ),
+    );
+  }
+
+  /// Right side: revised sermon. When highlights are on, lines that don't
+  /// appear in the original (verbatim) are tinted yellow.
+  Widget _revisedPanel() {
+    final text = widget.revised.isEmpty ? '(empty)' : widget.revised;
+    return _panelShell(
+      label: _highlightChanges ? 'Revised — new content highlighted' : 'Revised',
+      highlight: true,
+      child: SingleChildScrollView(
+        child: _highlightChanges
+            ? _HighlightedText(
+                original: widget.original,
+                revised: text,
+              )
+            : SelectableText(
+                text,
+                style: const TextStyle(fontSize: 14, height: 1.5),
+              ),
+      ),
+    );
+  }
+
+  Widget _panelShell({
+    required String label,
+    required bool highlight,
+    required Widget child,
+  }) {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
@@ -510,21 +605,59 @@ class _PenRevisionDiffDialogState extends State<_PenRevisionDiffDialog> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(label,
-              style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                    color: AppColors.primary,
-                    letterSpacing: 1.0,
-                  )),
-          const SizedBox(height: 6),
-          Expanded(
-            child: SingleChildScrollView(
-              child: SelectableText(
-                text.isEmpty ? '(empty)' : text,
-                style: const TextStyle(fontSize: 14, height: 1.5),
-              ),
-            ),
+          Text(
+            label,
+            style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                  color: AppColors.primary,
+                  letterSpacing: 1.0,
+                ),
           ),
+          const SizedBox(height: 6),
+          Expanded(child: child),
         ],
+      ),
+    );
+  }
+}
+
+/// Renders [revised] with each line tinted yellow if its trimmed contents
+/// don't appear verbatim in [original]. Line-level granularity is coarse but
+/// fast and gives a clear visual signal of what Claude added or reworded.
+class _HighlightedText extends StatelessWidget {
+  final String original;
+  final String revised;
+  const _HighlightedText({required this.original, required this.revised});
+
+  @override
+  Widget build(BuildContext context) {
+    final oldLines = original
+        .split('\n')
+        .map((l) => l.trim())
+        .where((l) => l.isNotEmpty)
+        .toSet();
+    final revisedLines = revised.split('\n');
+    final highlightColor = Colors.yellow.withValues(alpha: 0.45);
+
+    final spans = <TextSpan>[];
+    for (var i = 0; i < revisedLines.length; i++) {
+      final line = revisedLines[i];
+      final trimmed = line.trim();
+      final isNew = trimmed.isNotEmpty && !oldLines.contains(trimmed);
+      spans.add(TextSpan(
+        text: line,
+        style: TextStyle(
+          backgroundColor: isNew ? highlightColor : null,
+        ),
+      ));
+      if (i < revisedLines.length - 1) {
+        spans.add(const TextSpan(text: '\n'));
+      }
+    }
+
+    return SelectableText.rich(
+      TextSpan(
+        style: const TextStyle(fontSize: 14, height: 1.5, color: Colors.black),
+        children: spans,
       ),
     );
   }

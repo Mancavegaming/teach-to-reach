@@ -65,22 +65,24 @@ class AiPenRevisionService {
     final userMessage = '''
 $pageNote
 
-INTERPRET MY EDITS PRECISELY. Common ink conventions to watch for:
+YOU ARE WRITING AS THE PASTOR. My handwritten markings on the page are author instructions to YOU. Read every single annotation, no matter how small, including text in parentheses, arrows pointing to specific places, and notes scribbled in the margins. Nothing is decorative — every mark is a directive.
+
+INK CONVENTIONS:
 - Strikethrough lines through words → delete those words
-- Margin notes / arrows pointing into the text → insert that content where indicated
-- Underlines or circles → emphasize, expand, or rewrite that passage
-- Vertical bars in the margin → that paragraph needs attention; revise per any nearby note
-- Question marks → user is uncertain about that line; re-examine and improve
-- Caret (^) symbols → insert text at that point
-- "Move" arrows or numbers → reorder
+- Caret (^), arrows, or insertion marks → insert content there
+- Margin notes (anywhere off the printed text body) → write fresh sermon material at the indicated location
+- Notes in parentheses like "(include Romans 8:28)" or "(talk about the struggles of the world here)" or "(add a story)" → these are AUTHOR INSTRUCTIONS, not literal text to keep. EXPAND each one into real sermon prose: write the verse exegesis, the application, the illustration, etc. Do NOT paste the parenthetical text back verbatim. Do NOT skip them.
+- Underlines, circles, vertical bars → emphasize, expand, or rewrite that passage
+- Question marks → I'm uncertain — re-examine and improve
+- "Move" arrows or numbered marks → reorder
 
 WHAT TO PRODUCE:
-Apply my edits to the sermon. Preserve everything I did NOT mark up, exactly. Keep my voice (you have my voice corpus in your system context). Maintain scholarship standards (Hebrew/Greek where it illuminates, cross-references, two-horizon historical context where relevant).
+You are a pastor writing a sermon. Apply every annotation to the original text. Where I asked you to add a verse, write the verse + exposition. Where I asked you to cover a topic, write 1-3 paragraphs of sermon prose on it in my voice. Where I struck text, remove it cleanly so the prose still flows. Preserve everything I did NOT mark up exactly as printed. Match my voice (you have my voice corpus in your system context). Maintain scholarship standards (Hebrew/Greek where it illuminates, cross-references, two-horizon historical context where relevant).
+
+If any of my handwriting is genuinely illegible, make your best inference from context and proceed. If a marking is ambiguous (e.g. could be strikethrough or underline), prefer the interpretation that produces the more meaningful edit.
 
 OUTPUT
-Return ONLY the revised sermon text as clean markdown. No preamble. No commentary about what you changed. No "here's the revised text" framing — just the sermon.
-
-If any of my handwriting is genuinely illegible, make your best inference from context and proceed; do not stop to ask. If a marking is ambiguous (e.g. a line that could be strikethrough or underline), prefer the interpretation that produces the more meaningful edit.
+Return ONLY the revised sermon text as clean markdown. No preamble. No "here's the revised text" framing. No commentary about what you changed. Just the sermon, ready to preach.
 
 ORIGINAL SERMON TEXT (this is what's printed in the image, character-for-character):
 ${lesson.finalizedSermonText}
