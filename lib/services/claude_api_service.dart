@@ -154,6 +154,65 @@ class ClaudeApiService {
     }
   }
 
+  /// Make a Claude vision call with one or more images, in order.
+  /// Used for the pen-annotation revision loop when a sermon is long enough
+  /// that it needs to be sliced into multiple page tiles.
+  static Future<ClaudeResponse> callWithImages({
+    required List<Map<String, dynamic>> systemBlocks,
+    required String userMessage,
+    required List<Uint8List> images,
+    String mediaType = 'image/png',
+    int maxTokens = 4096,
+    String? model,
+  }) async {
+    if (!ApiConfig.isClaudeConfigured) {
+      return ClaudeResponse(
+        success: false,
+        error: 'Claude API key not configured.',
+      );
+    }
+    if (images.isEmpty) {
+      return ClaudeResponse(success: false, error: 'No images to send.');
+    }
+    try {
+      final content = <Map<String, dynamic>>[];
+      for (var i = 0; i < images.length; i++) {
+        content.add({
+          'type': 'image',
+          'source': {
+            'type': 'base64',
+            'media_type': mediaType,
+            'data': base64Encode(images[i]),
+          },
+        });
+      }
+      content.add({'type': 'text', 'text': userMessage});
+
+      final response = await http.post(
+        Uri.parse(_baseUrl),
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': ApiConfig.claudeApiKey,
+          'anthropic-version': _apiVersion,
+          'anthropic-beta': _cacheBeta,
+          'anthropic-dangerous-direct-browser-access': 'true',
+        },
+        body: jsonEncode({
+          'model': model ?? ApiConfig.claudeOpusModel,
+          'max_tokens': maxTokens,
+          'system': systemBlocks,
+          'messages': [
+            {'role': 'user', 'content': content},
+          ],
+        }),
+      );
+      return _parseResponse(response);
+    } catch (e) {
+      debugPrint('Claude vision call (multi-image) failed: $e');
+      return ClaudeResponse(success: false, error: e.toString());
+    }
+  }
+
   /// Make a Claude API call with conversation history.
   static Future<ClaudeResponse> callWithHistory({
     required List<Map<String, dynamic>> systemBlocks,

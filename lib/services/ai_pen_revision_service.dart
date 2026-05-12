@@ -44,7 +44,7 @@ class AiPenRevisionService {
       );
     }
 
-    final imageBytes = await AnnotationRenderer.render(
+    final imageTiles = await AnnotationRenderer.renderTiles(
       text: lesson.finalizedSermonText,
       strokes: annotation.strokes,
       canvasWidth: annotation.canvasWidth,
@@ -58,8 +58,12 @@ class AiPenRevisionService {
       voiceCorpus: voiceCorpus,
     );
 
+    final pageNote = imageTiles.length == 1
+        ? 'The image shows the finalized sermon text with my handwritten edits drawn on top in colored ink.'
+        : 'The ${imageTiles.length} images, in order, are consecutive vertical pages of the same finalized sermon. Each page is labeled "Page N of ${imageTiles.length}" in its top-left corner. Read them top-to-bottom as one continuous document. My handwritten edits are drawn on top of the printed text in colored ink.';
+
     final userMessage = '''
-The image shows the finalized sermon text with my handwritten edits drawn on top in colored ink.
+$pageNote
 
 INTERPRET MY EDITS PRECISELY. Common ink conventions to watch for:
 - Strikethrough lines through words → delete those words
@@ -82,10 +86,10 @@ ORIGINAL SERMON TEXT (this is what's printed in the image, character-for-charact
 ${lesson.finalizedSermonText}
 ''';
 
-    final response = await ClaudeApiService.callWithImage(
+    final response = await ClaudeApiService.callWithImages(
       systemBlocks: systemBlocks,
       userMessage: userMessage,
-      imageBytes: imageBytes,
+      images: imageTiles,
       mediaType: 'image/png',
       maxTokens: 6144,
       model: ApiConfig.claudeOpusModel,
