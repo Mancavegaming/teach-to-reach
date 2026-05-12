@@ -11,6 +11,8 @@ class Lesson {
   final String finalizedSermonText;
   final int targetDurationMinutes;
   final bool isFinalized;
+  final DateTime? scheduledDate;
+  final DateTime? scheduledEndDate;
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -25,10 +27,15 @@ class Lesson {
     this.finalizedSermonText = '',
     this.targetDurationMinutes = 30,
     this.isFinalized = false,
+    this.scheduledDate,
+    this.scheduledEndDate,
     DateTime? createdAt,
     DateTime? updatedAt,
   })  : createdAt = createdAt ?? DateTime.now(),
         updatedAt = updatedAt ?? DateTime.now();
+
+  bool get isScheduled => scheduledDate != null;
+  bool get isMultiWeek => scheduledEndDate != null;
 
   factory Lesson.fromFirestore(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>;
@@ -43,6 +50,8 @@ class Lesson {
       finalizedSermonText: data['finalizedSermonText'] ?? '',
       targetDurationMinutes: data['targetDurationMinutes'] ?? 30,
       isFinalized: data['isFinalized'] ?? false,
+      scheduledDate: (data['scheduledDate'] as Timestamp?)?.toDate(),
+      scheduledEndDate: (data['scheduledEndDate'] as Timestamp?)?.toDate(),
       createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
       updatedAt: (data['updatedAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
     );
@@ -58,6 +67,11 @@ class Lesson {
         'finalizedSermonText': finalizedSermonText,
         'targetDurationMinutes': targetDurationMinutes,
         'isFinalized': isFinalized,
+        'scheduledDate':
+            scheduledDate == null ? null : Timestamp.fromDate(scheduledDate!),
+        'scheduledEndDate': scheduledEndDate == null
+            ? null
+            : Timestamp.fromDate(scheduledEndDate!),
         'createdAt': Timestamp.fromDate(createdAt),
         'updatedAt': Timestamp.fromDate(DateTime.now()),
       };
@@ -71,6 +85,8 @@ class Lesson {
     String? finalizedSermonText,
     int? targetDurationMinutes,
     bool? isFinalized,
+    Object? scheduledDate = _sentinel,
+    Object? scheduledEndDate = _sentinel,
   }) {
     return Lesson(
       id: id ?? this.id,
@@ -83,8 +99,16 @@ class Lesson {
       finalizedSermonText: finalizedSermonText ?? this.finalizedSermonText,
       targetDurationMinutes: targetDurationMinutes ?? this.targetDurationMinutes,
       isFinalized: isFinalized ?? this.isFinalized,
+      scheduledDate: identical(scheduledDate, _sentinel)
+          ? this.scheduledDate
+          : scheduledDate as DateTime?,
+      scheduledEndDate: identical(scheduledEndDate, _sentinel)
+          ? this.scheduledEndDate
+          : scheduledEndDate as DateTime?,
       createdAt: createdAt,
       updatedAt: DateTime.now(),
     );
   }
+
+  static const Object _sentinel = Object();
 }

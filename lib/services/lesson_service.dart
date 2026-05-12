@@ -8,6 +8,7 @@ class LessonService extends ChangeNotifier {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   final Map<String, List<Lesson>> _lessonsBySeries = {};
+  List<Lesson> _allLessons = const [];
   bool _isLoading = false;
   String? _error;
 
@@ -15,6 +16,37 @@ class LessonService extends ChangeNotifier {
   String? get error => _error;
   List<Lesson> lessonsFor(String seriesId) =>
       List.unmodifiable(_lessonsBySeries[seriesId] ?? const []);
+
+  /// Flat list of every lesson the owner has across all series — used by the
+  /// planner.
+  List<Lesson> get allLessons => List.unmodifiable(_allLessons);
+
+  /// Loads every lesson belonging to [ownerId] across all series. Also
+  /// populates the per-series cache so other screens benefit from one query.
+  Future<void> loadAllLessonsForOwner(String ownerId) async {
+    _isLoading = true;
+    _error = null;
+    notifyListeners();
+    try {
+      final snap = await _lessons
+          .where('ownerId', isEqualTo: ownerId)
+          .limit(2000)
+          .get();
+      final list = snap.docs.map((d) => Lesson.fromFirestore(d)).toList();
+      list.sort((a, b) => a.createdAt.compareTo(b.createdAt));
+      _allLessons = list;
+      _lessonsBySeries.clear();
+      for (final lesson in list) {
+        _lessonsBySeries.putIfAbsent(lesson.seriesId, () => []).add(lesson);
+      }
+    } catch (e) {
+      debugPrint('Error loading all lessons: $e');
+      _error = 'Failed to load lessons';
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
 
   CollectionReference get _lessons => _firestore.collection('lessons');
   CollectionReference get _sections => _firestore.collection('sections');
@@ -48,6 +80,7 @@ class LessonService extends ChangeNotifier {
       final saved = lesson.copyWith(id: ref.id);
       final list = _lessonsBySeries.putIfAbsent(lesson.seriesId, () => []);
       list.add(saved);
+      _allLessons = [..._allLessons, saved];
       notifyListeners();
       return ref.id;
     } catch (e) {
@@ -65,6 +98,12 @@ class LessonService extends ChangeNotifier {
         final idx = list.indexWhere((l) => l.id == lesson.id);
         if (idx >= 0) list[idx] = lesson;
       }
+      final allIdx = _allLessons.indexWhere((l) => l.id == lesson.id);
+      if (allIdx >= 0) {
+        final updated = [..._allLessons];
+        updated[allIdx] = lesson;
+        _allLessons = updated;
+      }
       notifyListeners();
       return true;
     } catch (e) {
@@ -77,6 +116,7 @@ class LessonService extends ChangeNotifier {
     try {
       await _lessons.doc(lessonId).delete();
       _lessonsBySeries[seriesId]?.removeWhere((l) => l.id == lessonId);
+      _allLessons = _allLessons.where((l) => l.id != lessonId).toList();
       notifyListeners();
       return true;
     } catch (e) {

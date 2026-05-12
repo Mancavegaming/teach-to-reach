@@ -10,6 +10,7 @@ import '../../../services/doctrinal_positions_service.dart';
 import '../../../services/series_service.dart';
 import '../../../services/teacher_profile_service.dart';
 import '../../../services/voice_corpus_service.dart';
+import '../../planner/screens/planner_screen.dart';
 import '../../profile/screens/class_profile_screen.dart';
 import '../../profile/screens/doctrinal_positions_screen.dart';
 import '../../profile/screens/teacher_profile_screen.dart';
@@ -25,39 +26,56 @@ class HomeDashboard extends StatelessWidget {
     final auth = context.watch<AuthService>();
     final displayName = auth.user?.displayName ?? auth.user?.email ?? 'Teacher';
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Teach to Reach'),
-        actions: [
-          IconButton(
-            tooltip: 'Sign out',
-            icon: const Icon(Icons.logout),
-            onPressed: () => _confirmSignOut(context),
+    return DefaultTabController(
+      length: 2,
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text('Teach to Reach'),
+          actions: [
+            IconButton(
+              tooltip: 'Sign out',
+              icon: const Icon(Icons.logout),
+              onPressed: () => _confirmSignOut(context),
+            ),
+          ],
+          bottom: const TabBar(
+            tabs: [
+              Tab(icon: Icon(Icons.menu_book), text: 'Lessons'),
+              Tab(icon: Icon(Icons.event_note), text: 'Planner'),
+            ],
           ),
-        ],
-      ),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+        ),
+        body: SafeArea(
+          child: TabBarView(
             children: [
-              _WelcomeHeader(name: displayName),
-              const SizedBox(height: 24),
-              const _SeriesSection(),
-              const SizedBox(height: 24),
-              Text(
-                'Profile & Foundations',
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      color: AppColors.primary,
-                      letterSpacing: 1.2,
-                      fontWeight: FontWeight.w600,
+              SingleChildScrollView(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _WelcomeHeader(name: displayName),
+                    const SizedBox(height: 24),
+                    const _SeriesSection(),
+                    const SizedBox(height: 24),
+                    Text(
+                      'Profile & Foundations',
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                            color: AppColors.primary,
+                            letterSpacing: 1.2,
+                            fontWeight: FontWeight.w600,
+                          ),
                     ),
+                    const SizedBox(height: 12),
+                    const _ProfilesGrid(),
+                    const SizedBox(height: 24),
+                    const _PhaseRoadmap(),
+                  ],
+                ),
               ),
-              const SizedBox(height: 12),
-              const _ProfilesGrid(),
-              const SizedBox(height: 24),
-              const _PhaseRoadmap(),
+              const SingleChildScrollView(
+                padding: EdgeInsets.all(20),
+                child: PlannerScreen(),
+              ),
             ],
           ),
         ),
