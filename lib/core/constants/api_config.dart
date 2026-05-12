@@ -22,4 +22,10 @@ class ApiConfig {
   static String get claudeApiKey => _claudeApiKey;
 
   static bool get isClaudeConfigured => _claudeApiKey.isNotEmpty;
+
+  // Pexels stock photo API — used by the slides image-picker. Inject with
+  // --dart-define=PEXELS_API_KEY=...
+  static const String _pexelsApiKey = String.fromEnvironment('PEXELS_API_KEY');
+  static String get pexelsApiKey => _pexelsApiKey;
+  static bool get isPexelsConfigured => _pexelsApiKey.isNotEmpty;
 }

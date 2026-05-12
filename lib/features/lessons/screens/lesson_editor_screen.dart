@@ -20,6 +20,7 @@ import '../../ai/widgets/ai_revise_dialog.dart';
 import '../../annotation/screens/annotation_screen.dart';
 import '../../sermon_mode/screens/sermon_mode_screen.dart';
 import '../../support_docs/screens/fill_in_handout_preview_screen.dart';
+import '../../support_docs/screens/slides_preview_screen.dart';
 import '../widgets/lesson_form_dialog.dart';
 
 class LessonEditorScreen extends StatefulWidget {
@@ -444,6 +445,8 @@ class _LessonEditorScreenState extends State<LessonEditorScreen> {
     }
 
     final isFillIn = type == SupportDocType.fillInHandout;
+    final isSlides = type == SupportDocType.slides;
+    final needsPreview = isFillIn || isSlides;
     final result = await AiSupportDocService.generate(
       type: type,
       lesson: _lesson,
@@ -453,7 +456,7 @@ class _LessonEditorScreenState extends State<LessonEditorScreen> {
       classProfile: classProfile,
       doctrine: doctrine,
       voiceCorpus: corpus,
-      renderPdfDirectly: !isFillIn,
+      renderPdfDirectly: !needsPreview,
     );
     if (!mounted) return;
     setState(() => _generatingDocType = null);
@@ -466,22 +469,26 @@ class _LessonEditorScreenState extends State<LessonEditorScreen> {
       return;
     }
 
-    if (isFillIn) {
-      // Route through the preview screen so the user can toggle which words
-      // are blanks before the PDF is generated.
+    if (needsPreview) {
       if (result.data == null) {
         messenger.showSnackBar(
-          const SnackBar(content: Text('Fill-in handout: AI returned no data.')),
+          SnackBar(content: Text('${type.label}: AI returned no data.')),
         );
         return;
       }
       await Navigator.of(context).push(
         MaterialPageRoute(
-          builder: (_) => FillInHandoutPreviewScreen(
-            lesson: _lesson,
-            seriesTitle: series?.title,
-            data: result.data!,
-          ),
+          builder: (_) => isFillIn
+              ? FillInHandoutPreviewScreen(
+                  lesson: _lesson,
+                  seriesTitle: series?.title,
+                  data: result.data!,
+                )
+              : SlidesPreviewScreen(
+                  lesson: _lesson,
+                  seriesTitle: series?.title,
+                  data: result.data!,
+                ),
         ),
       );
       return;

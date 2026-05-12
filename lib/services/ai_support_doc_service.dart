@@ -156,7 +156,12 @@ Respond with ONLY a JSON object — no prose before or after — in this shape:
 
 {
   "slides": [
-    {"title": "string (≤8 words)", "bullets": ["short bullet (≤9 words)", "..."], "speakerNotes": "1-2 sentence speaker note"},
+    {
+      "title": "string (≤8 words)",
+      "bullets": ["short bullet (≤9 words)", "..."],
+      "speakerNotes": "1-2 sentence speaker note",
+      "imageHint": "3-5 word concrete visual search query for a stock photo"
+    },
     ...
   ]
 }
@@ -165,6 +170,7 @@ Rules:
 - 12-18 slides total: title slide, big idea, scripture, one slide per section's main beat, summary, application, prayer/closing.
 - Max 5 bullets per slide; bullets are 5-9 words; titles are 3-8 words.
 - Speaker notes are private cues (the teacher reads, students don't see).
+- imageHint is a CONCRETE visual search query, like "shepherd holding lamb", "open Bible on wooden desk", "teenager praying alone", "wheat field at sunset". Avoid abstract concepts ("faith", "grace") — those don't return good photos. The teacher can override or skip on a per-slide basis.
 - No markdown inside fields, plain text only.
 ''';
 
@@ -338,12 +344,14 @@ Rules:
     ));
 
     for (final s in slides) {
+      final imageBytes = s['imageBytes'];
       doc.addPage(_slidePage(
         title: (s['title'] as String?) ?? '',
         bullets: (s['bullets'] as List<dynamic>? ?? const [])
             .map((b) => b.toString())
             .toList(),
         speakerNotes: (s['speakerNotes'] as String?) ?? '',
+        imageBytes: imageBytes is Uint8List ? imageBytes : null,
       ));
     }
   }
@@ -353,7 +361,11 @@ Rules:
     required List<String> bullets,
     String speakerNotes = '',
     bool isTitle = false,
+    Uint8List? imageBytes,
   }) {
+    final hasImage = imageBytes != null && imageBytes.isNotEmpty;
+    final image = hasImage ? pw.MemoryImage(imageBytes) : null;
+
     return pw.Page(
       pageFormat: PdfPageFormat.standard.landscape,
       build: (ctx) => pw.Container(
@@ -372,42 +384,37 @@ Rules:
               title,
               style: pw.TextStyle(
                 color: PdfColor.fromInt(0xFFD4AF37),
-                fontSize: isTitle ? 56 : 40,
+                fontSize: isTitle ? 56 : 36,
                 fontWeight: pw.FontWeight.bold,
               ),
             ),
-            pw.SizedBox(height: 28),
-            for (final b in bullets)
-              pw.Padding(
-                padding: const pw.EdgeInsets.only(bottom: 14),
-                child: pw.Row(
-                  crossAxisAlignment: pw.CrossAxisAlignment.start,
-                  children: [
-                    pw.Container(
-                      margin: const pw.EdgeInsets.only(top: 12, right: 14),
-                      width: 8,
-                      height: 8,
-                      decoration: pw.BoxDecoration(
-                        color: PdfColor.fromInt(0xFFD4AF37),
-                        shape: pw.BoxShape.circle,
-                      ),
-                    ),
-                    pw.Expanded(
-                      child: pw.Text(
-                        b,
-                        style: pw.TextStyle(
-                          color: PdfColor.fromInt(0xFFF5F5F5),
-                          fontSize: isTitle ? 24 : 28,
+            pw.SizedBox(height: 20),
+            pw.Expanded(
+              child: hasImage
+                  ? pw.Row(
+                      crossAxisAlignment: pw.CrossAxisAlignment.start,
+                      children: [
+                        pw.Expanded(
+                          flex: 5,
+                          child: _slideBullets(bullets, isTitle),
                         ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            pw.Spacer(),
+                        pw.SizedBox(width: 24),
+                        pw.Expanded(
+                          flex: 4,
+                          child: pw.ClipRRect(
+                            horizontalRadius: 12,
+                            verticalRadius: 12,
+                            child: pw.Image(image!, fit: pw.BoxFit.cover),
+                          ),
+                        ),
+                      ],
+                    )
+                  : _slideBullets(bullets, isTitle),
+            ),
             if (speakerNotes.isNotEmpty)
               pw.Container(
                 width: double.infinity,
+                margin: const pw.EdgeInsets.only(top: 16),
                 padding: const pw.EdgeInsets.all(12),
                 decoration: pw.BoxDecoration(
                   border: pw.Border(
@@ -429,6 +436,41 @@ Rules:
           ],
         ),
       ),
+    );
+  }
+
+  static pw.Widget _slideBullets(List<String> bullets, bool isTitle) {
+    return pw.Column(
+      crossAxisAlignment: pw.CrossAxisAlignment.start,
+      children: [
+        for (final b in bullets)
+          pw.Padding(
+            padding: const pw.EdgeInsets.only(bottom: 14),
+            child: pw.Row(
+              crossAxisAlignment: pw.CrossAxisAlignment.start,
+              children: [
+                pw.Container(
+                  margin: const pw.EdgeInsets.only(top: 12, right: 14),
+                  width: 8,
+                  height: 8,
+                  decoration: pw.BoxDecoration(
+                    color: PdfColor.fromInt(0xFFD4AF37),
+                    shape: pw.BoxShape.circle,
+                  ),
+                ),
+                pw.Expanded(
+                  child: pw.Text(
+                    b,
+                    style: pw.TextStyle(
+                      color: PdfColor.fromInt(0xFFF5F5F5),
+                      fontSize: isTitle ? 24 : 24,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+      ],
     );
   }
 
